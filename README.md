@@ -1,88 +1,42 @@
-# TS6 Droid
+# TS6 Droid 简体中文增强版
 
-Client libre et léger TeamSpeak 3/6 pour Android, construit avec [tslib](https://github.com/flamme-demon/tslib) (bibliothèque Rust) et Jetpack Compose.
+基于原作者 [flamme-demon/TS6_Droid](https://github.com/flamme-demon/TS6_Droid) 的开源项目进行汉化与功能增强的 Android 客户端。
 
-## Fonctionnalités
+这是一个自由、轻量级的 TeamSpeak 3/6 安卓客户端，使用 Jetpack Compose 构建，底层由 Rust 编写的 `tslib` 驱动。
 
-- **Connexion** aux serveurs TeamSpeak 3 et 6
-- **Favoris** avec nom du serveur et icône (récupérés automatiquement)
-- **Reconnexion automatique** au dernier serveur
-- **Chat** channel et messages privés avec historique persistant
-- **Push-to-Talk** avec codec Opus (48 kHz, mono)
-- **Arborescence des channels** avec liste des utilisateurs
-- **Gestionnaire de fichiers** — navigation, upload, download, création de dossiers
-- **Parcours des channels** avant connexion (sélecteur de channel)
-- **BBCode** dans les messages
+---
 
-## Architecture
+## 🌟 汉化及增强特性
 
-```
-app/src/main/
-├── java/dev/tslib/          # Classes JNI (pont vers la lib Rust)
-├── kotlin/dev/tsdroid/
-│   ├── bridge/              # TsClient (coroutines + StateFlow)
-│   ├── data/                # BookmarkStore, ServerBookmark, MessageStore
-│   ├── service/             # TsConnectionService (foreground service)
-│   ├── viewmodel/           # ConnectionViewModel, ServerViewModel
-│   └── ui/
-│       ├── screen/          # ConnectionScreen, ServerScreen
-│       └── component/       # ChannelTree, ChatView, MessageBubble, ...
-└── res/                     # Ressources Android
-```
+相较于原版，本项目进行了以下关键优化：
 
-La bibliothèque native `tslib` (Rust) gère le protocole TeamSpeak via JNI. Le service Android `TsConnectionService` maintient la connexion en arrière-plan avec une notification persistante.
+1. **简体中文本地化**：100% 补齐了全文本的简体中文翻译（`zh-rCN`）。
+2. **新增手动语言切换**：在应用**右上角独家新增了语言切换按钮**，支持在中文与英文之间一键自由切换，无需更改手机系统语言。
+3. **内置核心语音驱动**：移除了原版繁琐的本地 Rust 交叉编译限制，在源码中**直接内置了全架构核心二进制库（jniLibs）**，实现开箱即用。
+4. **云编译（CI/CD）深度优化**：
+   - 适配了 AndroidX 及 Jetifier 兼容环境，铲平了 `checkDebugAarMetadata` 编译崩溃大坑。
+   - 优化了 Gradle JVM 内存上限（`-Xmx4096m`），彻底解决了云端虚拟机打包 `.so` 库时极易触发的 `OutOfMemoryError` 内存溢出问题。
 
-## Prérequis
+---
 
-- **Android Studio** (ou Gradle 8.14+)
-- **JDK 17**
-- **Rust** avec [cargo-ndk](https://github.com/nickelc/cargo-ndk)
-- **Android NDK** 27.x (via SDK Manager)
-- **tslib** cloné à côté du projet (`../tslib`)
+## 🛠️ 如何进行云编译 (GitHub Actions)
 
-## Build
+得益于本项目对云端环境的优化，你不需要在本地配置复杂的 Android Studio、Rust 以及 NDK 环境，直接利用 GitHub 即可一键编译属于你自己的 APK：
 
-### 1. Compiler la bibliothèque native
+1. **Fork 本仓库** 到你自己的 GitHub 账号下。
+2. 进入你 Fork 后的仓库页面，点击顶部的 **Actions** 标签。
+3. 如果提示需要开启权限，点击绿色按钮激活 Actions。
+4. 之后的每一次代码推送（Push），或者你在 Actions 页面手动触发工作流，GitHub 都会自动开始打包。
+5. 编译完成后，点击对应的构建历史，拉到最底部即可在 **Assets** 区域下载最新生成的 `app-debug.apk`。
 
-```bash
-cd ../tslib
+---
 
-ANDROID_NDK=~/Android/Sdk/ndk/27.2.12479018 \
-CMAKE_POLICY_VERSION_MINIMUM=3.5 \
-cargo ndk -t arm64-v8a \
-  -o ../TS6_Droid/app/src/main/jniLibs \
-  build --release -p tslib-jni --features vendored-openssl
-```
+## 📚 详细技术架构与配置
 
-Ou via la tâche Gradle intégrée :
+关于本项目的底层 Rust 架构设计、本地编译环境搭建（Android NDK/Rust/Cargo）以及更多技术细节，请直接参考**原作者仓库说明**：
 
-```bash
-./gradlew buildRustLibs
-```
+🔗 **原作者官方仓库**：[flamme-demon/TS6_Droid](https://github.com/flamme-demon/TS6_Droid)
 
-### 2. Compiler l'APK
+## 📄 开源许可
 
-```bash
-./gradlew assembleDebug
-```
-
-L'APK se trouve dans `app/build/outputs/apk/debug/`.
-
-### 3. Installer sur un appareil
-
-```bash
-adb install -r app/build/outputs/apk/debug/app-debug.apk
-```
-
-## Configuration
-
-| Paramètre | Valeur |
-|-----------|--------|
-| `minSdk` | 29 (Android 10) |
-| `targetSdk` | 35 |
-| `compileSdk` | 35 |
-| Audio | Opus, 48 kHz, mono, frames 20 ms |
-
-## Licence
-
-Ce projet est un logiciel libre. Voir le fichier [LICENSE](LICENSE) pour plus de détails.
+本项目遵循原作者的自由软件开源协议。详细内容请参阅 [LICENSE](LICENSE) 文件。
