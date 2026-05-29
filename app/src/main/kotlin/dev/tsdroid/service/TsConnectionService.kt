@@ -106,6 +106,8 @@ class TsConnectionService : LifecycleService(), ViewModelStoreOwner, SavedStateR
     
     // Overlay state
     private var isOverlayExpanded by mutableStateOf(false)
+    
+    private var isIntentionalDisconnect = false
 
     override fun onCreate() {
         super.onCreate()
@@ -234,6 +236,7 @@ class TsConnectionService : LifecycleService(), ViewModelStoreOwner, SavedStateR
     }
 
     fun connect(address: String, identity: Identity, nickname: String, password: String?) {
+        isIntentionalDisconnect = false
         serviceScope.launch {
             tsClient.connect(address, identity, nickname, password)
             audioBridge.startCapture(serviceScope)
@@ -247,13 +250,16 @@ class TsConnectionService : LifecycleService(), ViewModelStoreOwner, SavedStateR
     }
 
     fun disconnect() {
+        isIntentionalDisconnect = true
         hideFloatingWindow()
         audioBridge.stopCapture()
         serviceScope.launch(Dispatchers.IO) {
             tsClient.disconnect()
             withContext(Dispatchers.Main) {
-                stopForeground(STOP_FOREGROUND_REMOVE)
-                stopSelf()
+                if (isIntentionalDisconnect) {
+                    stopForeground(STOP_FOREGROUND_REMOVE)
+                    stopSelf()
+                }
             }
         }
     }
@@ -303,6 +309,11 @@ class TsConnectionService : LifecycleService(), ViewModelStoreOwner, SavedStateR
             setViewTreeSavedStateRegistryOwner(this@TsConnectionService)
             
             setContent {
+                val configuration = androidx.compose.ui.platform.LocalConfiguration.current
+                val density = androidx.compose.ui.platform.LocalDensity.current
+                val screenWidthDp = configuration.screenWidthDp.dp
+                val screenHeightDp = configuration.screenHeightDp.dp
+                
                 val channels by tsClient.channels.collectAsState()
                 val users by tsClient.users.collectAsState()
                 val isMicMuted by audioBridge.isMuted.collectAsState()
@@ -405,14 +416,14 @@ class TsConnectionService : LifecycleService(), ViewModelStoreOwner, SavedStateR
 
         Box(
             modifier = Modifier
-                .fillMaxSize()
+                .wrapContentSize()
                 .background(Color.Transparent) // Force the root container token to be 100% transparent
         ) {
             if (!isExpanded) {
                 // --- COLLAPSED AVATAR BUBBLE ---
                 Surface(
                     modifier = Modifier
-                        .size(76.dp)
+                        .size(48.dp)
                         .pointerInput(Unit) {
                             detectDragGestures { change, dragAmount ->
                                 change.consume()
@@ -427,36 +438,31 @@ class TsConnectionService : LifecycleService(), ViewModelStoreOwner, SavedStateR
                     Box(contentAlignment = Alignment.Center) {
                         // Render Avatar Circle + Mini Speaker Waveform Indicator
                         if (!activeSpeakerName.isNullOrEmpty()) {
+                            // Have speaker: Show user avatar
                             Icon(
-                                Icons.Default.VolumeUp,
+                                Icons.Default.Person,
                                 contentDescription = "Active Speaker",
                                 tint = Color.White,
-                                modifier = Modifier.align(Alignment.Center).padding(bottom = 12.dp)
+                                modifier = Modifier.align(Alignment.Center)
                             )
                         } else {
-                            Icon(
-                                Icons.Default.ChatBubble,
+                            // No speaker: Show software logo
+                            androidx.compose.foundation.Image(
+                                painter = androidx.compose.ui.res.painterResource(id = R.mipmap.ic_launcher),
                                 contentDescription = "Open Panel",
-                                tint = if (connected) Color.White else Color.Gray,
-                                modifier = Modifier.align(Alignment.Center).padding(bottom = 12.dp)
+                                modifier = Modifier
+                                    .align(Alignment.Center)
+                                    .fillMaxSize(0.6f)
                             )
                         }
-                        
-                        Text(
-                            text = activeSpeakerName ?: "No Speaker",
-                            style = MaterialTheme.typography.labelSmall.copy(color = Color.White),
-                            modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 8.dp),
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
                     }
                 }
             } else {
                 // --- EXPANDED MINIMALIST PANEL ---
                 Card(
                     modifier = Modifier
-                        .width(280.dp)
-                        .height(350.dp),
+                        .width(240.dp)
+                        .height(300.dp),
                     shape = RoundedCornerShape(16.dp),
                     colors = CardDefaults.cardColors(containerColor = CardBackgroundTransparent), // Blends flawlessly over game/desktop backgrounds
                     border = BorderStroke(1.dp, Color(0x33FFFFFF)),
