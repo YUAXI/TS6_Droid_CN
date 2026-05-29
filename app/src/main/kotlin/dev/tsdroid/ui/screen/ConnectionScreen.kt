@@ -66,6 +66,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import dev.tsdroid.data.SettingsStore
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -113,15 +114,15 @@ fun ConnectionScreen(
     val isConnecting = connectionState == ConnectionState.CONNECTING
     val context = LocalContext.current
     val activity = context as? androidx.activity.ComponentActivity
+    val settingsStore = remember { SettingsStore(context) }
     val languageOptions = listOf(
         "zh" to stringResource(R.string.language_simplified_chinese),
         "en" to stringResource(R.string.language_english),
         "fr" to stringResource(R.string.language_french),
     )
-    val defaultLanguageTag = languageOptions[0].first
-    val defaultLanguageLabel = languageOptions[0].second
-    var selectedLanguage by rememberSaveable { mutableStateOf(defaultLanguageLabel) }
-    var selectedLanguageTag by rememberSaveable { mutableStateOf(defaultLanguageTag) }
+    val selectedLanguageTag by settingsStore.language.collectAsState(initial = "zh")
+    val selectedLanguage = languageOptions.firstOrNull { it.first == selectedLanguageTag }?.second
+        ?: stringResource(R.string.language_simplified_chinese)
     var languageMenuExpanded by rememberSaveable { mutableStateOf(false) }
 
     // Request permissions
@@ -168,10 +169,11 @@ fun ConnectionScreen(
                                 DropdownMenuItem(
                                     text = { Text(languageLabel) },
                                     onClick = {
-                                        selectedLanguage = languageLabel
-                                        selectedLanguageTag = languageTag
-                                        updateAppLocale(context, languageTag)
-                                        activity?.recreate()
+                                        scope.launch {
+                                            settingsStore.setLanguage(languageTag)
+                                            updateAppLocale(context, languageTag)
+                                            activity?.recreate()
+                                        }
                                         languageMenuExpanded = false
                                     },
                                 )
