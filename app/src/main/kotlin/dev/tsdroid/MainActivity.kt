@@ -17,6 +17,10 @@ import dev.tsdroid.ui.screen.AppNavigation
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
+import android.content.Intent
+import android.provider.Settings
+import android.text.TextUtils
+import dev.tsdroid.service.TsConnectionService
 
 class MainActivity : ComponentActivity() {
     private val connectionViewModel: ConnectionViewModel by viewModels()
@@ -57,7 +61,33 @@ class MainActivity : ComponentActivity() {
         super.onStop()
         Log.d(TAG, "onStop: showing floating window")
         if (!isChangingConfigurations) {
-            connectionViewModel.showFloatingWindow()
+            if (isAccessibilityServiceEnabled(this, TsConnectionService::class.java)) {
+                connectionViewModel.showFloatingWindow()
+            } else {
+                Log.w(TAG, "Accessibility service not enabled, prompting user")
+                val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
+                startActivity(intent)
+            }
         }
+    }
+
+    private fun isAccessibilityServiceEnabled(context: Context, accessibilityService: Class<*>): Boolean {
+        val expectedComponentName = android.content.ComponentName(context, accessibilityService)
+        val enabledServicesSetting = Settings.Secure.getString(
+            context.contentResolver,
+            Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES
+        ) ?: return false
+
+        val colonSplitter = TextUtils.SimpleStringSplitter(':')
+        colonSplitter.setString(enabledServicesSetting)
+
+        while (colonSplitter.hasNext()) {
+            val componentNameString = colonSplitter.next()
+            val enabledService = android.content.ComponentName.unflattenFromString(componentNameString)
+            if (enabledService != null && enabledService == expectedComponentName) {
+                return true
+            }
+        }
+        return false
     }
 }

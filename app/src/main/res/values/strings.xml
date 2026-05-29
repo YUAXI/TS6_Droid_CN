@@ -13,6 +13,7 @@
     <string name="user_muted">Muted</string>
     <string name="channel_connection">Connection</string>
     <string name="channel_connection_desc">Notification de connexion au serveur</string>
+    <string name="accessibility_service_desc">TeamSpeak 6 Global Voice Controller</string>
 
     <!-- ConnectionScreen -->
     <string name="server_address">Adresse du serveur</string>

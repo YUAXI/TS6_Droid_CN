@@ -13,6 +13,8 @@ import android.view.ViewConfiguration
 import android.view.WindowManager
 import android.app.Notification
 import android.app.PendingIntent
+import android.accessibilityservice.AccessibilityService
+import android.view.accessibility.AccessibilityEvent
 import android.app.Service
 import android.content.Context
 import android.content.Intent
@@ -57,7 +59,15 @@ import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-class TsConnectionService : Service(), LifecycleOwner, ViewModelStoreOwner, SavedStateRegistryOwner {
+class TsConnectionService : AccessibilityService(), LifecycleOwner, ViewModelStoreOwner, SavedStateRegistryOwner {
+
+    override fun onAccessibilityEvent(event: AccessibilityEvent?) {
+        // Stub required by AccessibilityService
+    }
+
+    override fun onInterrupt() {
+        // Stub required by AccessibilityService
+    }
 
     companion object {
         private const val TAG = "TsConnService"
@@ -255,15 +265,20 @@ class TsConnectionService : Service(), LifecycleOwner, ViewModelStoreOwner, Save
         val params = WindowManager.LayoutParams(
             WindowManager.LayoutParams.WRAP_CONTENT,
             WindowManager.LayoutParams.WRAP_CONTENT,
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
-                WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
-            else WindowManager.LayoutParams.TYPE_PHONE,
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY
+            } else {
+                WindowManager.LayoutParams.TYPE_SYSTEM_ALERT
+            },
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
-            PixelFormat.TRANSLUCENT,
+            PixelFormat.TRANSLUCENT
         ).apply {
             gravity = Gravity.TOP or Gravity.START
-            x = 24
-            y = 200
+            x = 100
+            y = 300
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
+            }
         }
 
         val composeView = ComposeView(this).apply {
