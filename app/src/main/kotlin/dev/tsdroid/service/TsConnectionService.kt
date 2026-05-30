@@ -359,18 +359,24 @@ class TsConnectionService : LifecycleService(), ViewModelStoreOwner, SavedStateR
                 val users by tsClient.users.collectAsState()
                 val isMicMuted by audioBridge.isMuted.collectAsState()
                 val isOutputMuted by audioBridge.isOutputMuted.collectAsState()
+                val isLocalVoiceActive by audioBridge.isLocalVoiceActive.collectAsState()
                 
                 FloatingOverlayContent(
                     connected = overlayConnected,
                     channelName = overlayChannelName,
                     activeSpeakerName = overlayActiveSpeakerName,
                     activeSpeakerAvatar = overlayActiveSpeakerAvatar,
+                    isLocalVoiceActive = isLocalVoiceActive,
                     isExpanded = isOverlayExpanded,
                     onToggleExpand = { isOverlayExpanded = !isOverlayExpanded },
                     onDrag = { dx, dy ->
                         overlayLayoutParams?.let { layout ->
-                            layout.x += dx.toInt()
-                            layout.y += dy.toInt()
+                            val metrics = resources.displayMetrics
+                            val maxX = metrics.widthPixels - this.width
+                            val maxY = metrics.heightPixels - this.height
+
+                            layout.x = (layout.x + dx.toInt()).coerceIn(0, maxOf(0, maxX))
+                            layout.y = (layout.y + dy.toInt()).coerceIn(0, maxOf(0, maxY))
                             try {
                                 windowManager.updateViewLayout(this, layout)
                             } catch (_: Exception) {}
@@ -437,6 +443,7 @@ class TsConnectionService : LifecycleService(), ViewModelStoreOwner, SavedStateR
         channelName: String?,
         activeSpeakerName: String?,
         activeSpeakerAvatar: ImageBitmap?,
+        isLocalVoiceActive: Boolean,
         isExpanded: Boolean,
         onToggleExpand: () -> Unit,
         onDrag: (Float, Float) -> Unit,
@@ -464,7 +471,10 @@ class TsConnectionService : LifecycleService(), ViewModelStoreOwner, SavedStateR
         ) {
             if (!isExpanded) {
                 // --- COLLAPSED AVATAR BUBBLE ---
-                val isSpeaking = !activeSpeakerName.isNullOrEmpty()
+                // If local user is speaker, rely on true voice activity; else just activeSpeakerName
+                val isLocalSpeaker = overlayActiveSpeakerId == myId || myId != null && activeSpeakerName == users.find { it.id == myId }?.nickname
+                val isSpeaking = if (isLocalSpeaker) isLocalVoiceActive else !activeSpeakerName.isNullOrEmpty()
+                
                 val borderColor = if (isSpeaking) Color(0xFF2196F3) else Color(0x4DFFFFFF)
                 val borderWidth = if (isSpeaking) 2.dp else 1.dp
                 
@@ -572,7 +582,7 @@ class TsConnectionService : LifecycleService(), ViewModelStoreOwner, SavedStateR
                                 .padding(vertical = 8.dp)
                         ) {
                             items(activeUsers) { user ->
-                                val isSpeaking = user.nickname == activeSpeakerName
+                                val isSpeaking = if (user.id == myId) isLocalVoiceActive else user.nickname == activeSpeakerName
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()

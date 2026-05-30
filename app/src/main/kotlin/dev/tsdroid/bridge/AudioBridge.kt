@@ -76,6 +76,9 @@ class AudioBridge(
     private val _isCapturing = MutableStateFlow(false)
     val isCapturing: StateFlow<Boolean> = _isCapturing.asStateFlow()
 
+    private val _isLocalVoiceActive = MutableStateFlow(false)
+    val isLocalVoiceActive: StateFlow<Boolean> = _isLocalVoiceActive.asStateFlow()
+
     fun initialize() {
         try {
             // Explicitly release any old audio stream resources if lingering
@@ -120,13 +123,24 @@ class AudioBridge(
             while (isActive && _isCapturing.value) {
                 val read = audioRecord?.read(buffer, 0, FRAME_SIZE_SAMPLES) ?: break
                 if (read == FRAME_SIZE_SAMPLES && !_isMuted.value) {
+                    var energy = 0L
+                    for (i in 0 until read) {
+                        energy += buffer[i].toLong() * buffer[i].toLong()
+                    }
+                    val rms = Math.sqrt(energy.toDouble() / read)
+                    val isVoiceActive = rms > 150.0 // Adjusted threshold for voice activity
+                    _isLocalVoiceActive.value = isVoiceActive
+                    
                     val pcmBytes = shortsToBytes(buffer)
                     try {
                         val encoded = codec.encode(pcmBytes)
                         tsClient.sendAudio(encoded, CODEC_OPUS_VOICE)
                     } catch (_: Exception) {}
+                } else {
+                    _isLocalVoiceActive.value = false
                 }
             }
+            _isLocalVoiceActive.value = false
         }
     }
 

@@ -132,6 +132,8 @@ class ServerViewModel(application: Application) : AndroidViewModel(application) 
     private val _isOutputMuted = MutableStateFlow(false)
     val isOutputMuted: StateFlow<Boolean> = _isOutputMuted.asStateFlow()
 
+    val isLocalVoiceActive: StateFlow<Boolean> get() = audioBridge?.isLocalVoiceActive ?: MutableStateFlow(false)
+
     private val _connectionState = MutableStateFlow(ConnectionState.CONNECTED)
     val connectionState: StateFlow<Int> = _connectionState.asStateFlow()
 
@@ -310,9 +312,7 @@ class ServerViewModel(application: Application) : AndroidViewModel(application) 
             service.audioBridge.gainFactor = audioGain.value
             // Observe audio state for local talking status
             viewModelScope.launch {
-                combine(service.audioBridge.isMuted, service.audioBridge.isCapturing) { isMuted, isCapturing ->
-                    !isMuted && isCapturing
-                }.collect { _isLocalTalking.value = it }
+                service.audioBridge.isLocalVoiceActive.collect { _isLocalTalking.value = it }
             }
             viewModelScope.launch {
                 service.audioBridge.isOutputMuted.collect { _isOutputMuted.value = it }
