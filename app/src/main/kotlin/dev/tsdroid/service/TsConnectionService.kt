@@ -345,10 +345,6 @@ class TsConnectionService : LifecycleService(), ViewModelStoreOwner, SavedStateR
         }
 
         val composeView = ComposeView(this).apply {
-            layoutParams = android.view.ViewGroup.LayoutParams(
-                android.view.ViewGroup.LayoutParams.WRAP_CONTENT,
-                android.view.ViewGroup.LayoutParams.WRAP_CONTENT
-            )
             setViewTreeLifecycleOwner(this@TsConnectionService)
             setViewTreeViewModelStoreOwner(this@TsConnectionService)
             setViewTreeSavedStateRegistryOwner(this@TsConnectionService)
@@ -509,7 +505,7 @@ class TsConnectionService : LifecycleService(), ViewModelStoreOwner, SavedStateR
                         } else {
                             // No speaker: Show software logo
                             androidx.compose.foundation.Image(
-                                painter = androidx.compose.ui.res.painterResource(id = R.mipmap.ic_launcher),
+                                painter = androidx.compose.ui.res.painterResource(id = R.drawable.ic_launcher_foreground),
                                 contentDescription = "Open Panel",
                                 modifier = Modifier
                                     .align(Alignment.Center)
