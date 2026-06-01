@@ -262,7 +262,7 @@ class TsConnectionService : LifecycleService(), ViewModelStoreOwner, SavedStateR
         
         // Periodic avatar refresh to prevent cache expiration
         serviceScope.launch {
-            while (isActive) {
+            while (this.isActive) {
                 delay(30000) // Refresh every 30 seconds
                 val myId = tsClient.clientId
                 val localUser = tsClient.users.value.find { it.id == myId }
