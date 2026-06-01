@@ -261,25 +261,25 @@ class TsConnectionService : LifecycleService(), ViewModelStoreOwner, SavedStateR
         }.launchIn(serviceScope)
         
         // Periodic avatar refresh to prevent cache expiration
-        serviceScope.launch {
-            while (this.isActive) {
-                delay(30000) // Refresh every 30 seconds
-                val myId = tsClient.clientId
-                val localUser = tsClient.users.value.find { it.id == myId }
-                val localUid = localUser?.uid
-                if (!localUid.isNullOrEmpty()) {
-                    serviceScope.launch(Dispatchers.IO) {
-                        avatarCache.loadAvatar(localUid, tsClient)
-                        val avatar = avatarCache.getAvatar(localUid)
-                        withContext(Dispatchers.Main) {
-                            if (overlayActiveSpeakerId == myId) {
-                                overlayActiveSpeakerAvatar = avatar
+                serviceScope.launch {
+                    while (this.isActive) {
+                        delay(30000) // Refresh every 30 seconds
+                        val myId = tsClient.clientId
+                        val localUser = tsClient.users.value.find { it.id == myId }
+                        val localUid = localUser?.uid
+                        if (!localUid.isNullOrEmpty()) {
+                            serviceScope.launch(Dispatchers.IO) {
+                                avatarCache.loadAvatar(localUid, tsClient)
+                                val avatar = avatarCache.getAvatar(localUid)
+                                withContext(Dispatchers.Main) {
+                                    if (overlayActiveSpeakerId == myId) {
+                                        overlayActiveSpeakerAvatar = avatar
+                                    }
+                                }
                             }
                         }
                     }
                 }
-            }
-        }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
