@@ -85,6 +85,7 @@ class TsConnectionService : LifecycleService(), ViewModelStoreOwner, SavedStateR
         private const val ACTION_DISCONNECT = "com.flammedemon.ts6droid.DISCONNECT"
         private const val ACTION_TOGGLE_MUTE = "com.flammedemon.ts6droid.TOGGLE_MUTE"
         private const val SPEAKER_DELAY_MS = 500L
+        private const val AVATAR_REFRESH_INTERVAL_MS = 30000L // 30 seconds
 
         var instance: TsConnectionService? = null
             private set
@@ -176,6 +177,8 @@ class TsConnectionService : LifecycleService(), ViewModelStoreOwner, SavedStateR
                                 val uid = speakerUser?.uid
                                 if (!uid.isNullOrEmpty()) {
                                     serviceScope.launch(Dispatchers.IO) {
+                                        // Force refresh speaker avatar
+                                        avatarCache.clearMemoryCache(uid)
                                         avatarCache.loadAvatar(uid, tsClient)
                                         val avatar = avatarCache.getAvatar(uid)
                                         withContext(Dispatchers.Main) {
@@ -246,6 +249,8 @@ class TsConnectionService : LifecycleService(), ViewModelStoreOwner, SavedStateR
                         val localUid = localUser?.uid
                         if (!localUid.isNullOrEmpty()) {
                             serviceScope.launch(Dispatchers.IO) {
+                                // Force refresh local avatar
+                                avatarCache.clearMemoryCache(localUid)
                                 avatarCache.loadAvatar(localUid, tsClient)
                                 val avatar = avatarCache.getAvatar(localUid)
                                 withContext(Dispatchers.Main) {
@@ -260,26 +265,47 @@ class TsConnectionService : LifecycleService(), ViewModelStoreOwner, SavedStateR
             }
         }.launchIn(serviceScope)
         
-        // Periodic avatar refresh to prevent cache expiration
-                serviceScope.launch {
-                    while (true) {
-                        delay(30000) // Refresh every 30 seconds
-                        val myId = tsClient.clientId
-                        val localUser = tsClient.users.value.find { it.id == myId }
-                        val localUid = localUser?.uid
-                        if (!localUid.isNullOrEmpty()) {
-                            serviceScope.launch(Dispatchers.IO) {
-                                avatarCache.loadAvatar(localUid, tsClient)
-                                val avatar = avatarCache.getAvatar(localUid)
-                                withContext(Dispatchers.Main) {
-                                    if (overlayActiveSpeakerId == myId) {
-                                        overlayActiveSpeakerAvatar = avatar
-                                    }
+        // Periodic avatar refresh — force re-download ALL user avatars to keep them fresh
+        serviceScope.launch {
+            while (true) {
+                delay(AVATAR_REFRESH_INTERVAL_MS)
+                val myId = tsClient.clientId
+                if (myId == null) continue
+                
+                val currentUsers = tsClient.users.value
+                val currentChannelId = currentUsers.find { it.id == myId }?.channelId
+                val channelUsers = currentUsers.filter { it.channelId == currentChannelId }
+                
+                // Collect all UIDs in the current channel
+                val uids = channelUsers.mapNotNull { it.uid }.filter { it.isNotEmpty() }.toList()
+                if (uids.isEmpty()) continue
+                
+                serviceScope.launch(Dispatchers.IO) {
+                    // Clear memory cache for all channel users to force re-download
+                    avatarCache.clearMemoryCache(*uids.toTypedArray())
+                    
+                    // Re-download all avatars
+                    for (uid in uids) {
+                        avatarCache.loadAvatar(uid, tsClient)
+                    }
+                    
+                    // Update the current speaker avatar if someone is speaking
+                    val currentSpeakerId = overlayActiveSpeakerId
+                    if (currentSpeakerId != null) {
+                        val speakerUser = currentUsers.find { it.id == currentSpeakerId }
+                        val speakerUid = speakerUser?.uid
+                        if (!speakerUid.isNullOrEmpty()) {
+                            val updatedAvatar = avatarCache.getAvatar(speakerUid)
+                            withContext(Dispatchers.Main) {
+                                if (overlayActiveSpeakerId == currentSpeakerId) {
+                                    overlayActiveSpeakerAvatar = updatedAvatar
                                 }
                             }
                         }
                     }
                 }
+            }
+        }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -646,25 +672,34 @@ class TsConnectionService : LifecycleService(), ViewModelStoreOwner, SavedStateR
         ) {
             if (!isExpanded) {
                 // --- COLLAPSED AVATAR BUBBLE ---
+                // Try to get local user avatar even when not speaking
+                val localUser = myId?.let { users.find { u -> u.id == it } }
+                val localUid = localUser?.uid
+                
                 // Check if local user is speaking based on actual voice activity
                 val isLocalUserSpeaking = myId != null && isLocalVoiceActive
                 // Check if remote user is speaking based on activeSpeakerName
                 val isRemoteUserSpeaking = !activeSpeakerName.isNullOrEmpty()
                 // Combined speaking state
                 val isSpeaking = isLocalUserSpeaking || isRemoteUserSpeaking
-                // For display purposes, if local user is speaking, show their info
-                val shouldShowAvatar = if (isLocalUserSpeaking) {
-                    // Try to get local user avatar
-                    val myId = tsClient.clientId
-                    val localUser = users.find { it.id == myId }
-                    val localUid = localUser?.uid
+                
+                // Determine which avatar to show in the bubble
+                val displayAvatar = if (isLocalUserSpeaking) {
+                    // When local user is speaking, show our own avatar
                     if (!localUid.isNullOrEmpty()) {
-                        avatarCache.getAvatar(localUid)
+                        val cached = avatarCache.getAvatar(localUid)
+                        if (cached != null) cached else activeSpeakerAvatar
                     } else {
                         activeSpeakerAvatar
                     }
-                } else {
+                } else if (isRemoteUserSpeaking) {
+                    // When remote user is speaking, show their avatar
                     activeSpeakerAvatar
+                } else {
+                    // When nobody is speaking, still show local user avatar
+                    if (!localUid.isNullOrEmpty()) {
+                        avatarCache.getAvatar(localUid)
+                    } else null
                 }
                 
                 val borderColor = if (isSpeaking) Color(0xFF2196F3) else Color(0x4DFFFFFF)
@@ -686,24 +721,23 @@ class TsConnectionService : LifecycleService(), ViewModelStoreOwner, SavedStateR
                 ) {
                     Box(contentAlignment = Alignment.Center) {
                         // Render Avatar Circle + Mini Speaker Waveform Indicator
-                        if (isSpeaking) {
-                            // Have speaker: Show user avatar
-                            if (shouldShowAvatar != null) {
-                                androidx.compose.foundation.Image(
-                                    bitmap = shouldShowAvatar,
-                                    contentDescription = "Active Speaker Avatar",
-                                    modifier = Modifier.fillMaxSize().clip(CircleShape),
-                                    contentScale = ContentScale.Crop,
-                                    alpha = 1.0f
-                                )
-                            } else {
-                                Icon(
-                                    Icons.Default.Person,
-                                    contentDescription = "Active Speaker",
-                                    tint = Color.White,
-                                    modifier = Modifier.align(Alignment.Center)
-                                )
-                            }
+                        if (displayAvatar != null) {
+                            // Have an avatar available: show it
+                            androidx.compose.foundation.Image(
+                                bitmap = displayAvatar,
+                                contentDescription = "Avatar",
+                                modifier = Modifier.fillMaxSize().clip(CircleShape),
+                                contentScale = ContentScale.Crop,
+                                alpha = 1.0f
+                            )
+                        } else if (isSpeaking) {
+                            // Speaking but no avatar: show person icon
+                            Icon(
+                                Icons.Default.Person,
+                                contentDescription = "Active Speaker",
+                                tint = Color.White,
+                                modifier = Modifier.align(Alignment.Center)
+                            )
                         } else {
                             // No speaker: Show software logo
                             androidx.compose.foundation.Image(
@@ -786,8 +820,9 @@ class TsConnectionService : LifecycleService(), ViewModelStoreOwner, SavedStateR
                                     
                                     LaunchedEffect(user.uid) {
                                         if (!user.uid.isNullOrEmpty()) {
-                                            if (avatarCache.getAvatar(user.uid) != null) {
-                                                avatarBitmap = avatarCache.getAvatar(user.uid)
+                                            val cached = avatarCache.getAvatar(user.uid)
+                                            if (cached != null) {
+                                                avatarBitmap = cached
                                             } else if (!avatarCache.hasNoAvatar(user.uid)) {
                                                 avatarCache.loadAvatar(user.uid, tsClient)
                                                 avatarBitmap = avatarCache.getAvatar(user.uid)

@@ -25,6 +25,24 @@ class AvatarCache(private val cacheDir: File) {
 
     fun hasNoAvatar(uid: String): Boolean = (failedAttempts[uid] ?: 0) >= MAX_RETRIES
 
+    /** Clear memory cache for specific UIDs so next loadAvatar forces re-download */
+    fun clearMemoryCache(vararg uids: String) {
+        for (uid in uids) {
+            memoryCache.remove(uid)
+            loading.remove(uid)
+            failedAttempts.remove(uid)
+        }
+        Log.d(TAG, "Cleared memory cache for ${uids.size} UID(s)")
+    }
+
+    /** Clear ALL memory caches so next loadAvatar calls re-download */
+    fun clearAllMemoryCache() {
+        memoryCache.clear()
+        loading.clear()
+        failedAttempts.clear()
+        Log.d(TAG, "Cleared ALL memory caches")
+    }
+
     /**
      * Convert a TS3 base64 UID to the avatar file path used by the server.
      *
