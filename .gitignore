@@ -19,3 +19,6 @@ app/src/main/jniLibs/
 # OS
 .DS_Store
 Thumbs.db
+
+# TeamSpeak SDK (downloaded binary)
+teamspeak-sdk-3.5.0/
