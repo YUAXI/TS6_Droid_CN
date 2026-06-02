@@ -676,10 +676,12 @@ class TsConnectionService : LifecycleService(), ViewModelStoreOwner, SavedStateR
                 val localUser = myId?.let { users.find { u -> u.id == it } }
                 val localUid = localUser?.uid
                 
-                // Check if local user is speaking based on actual voice activity
-                val isLocalUserSpeaking = myId != null && isLocalVoiceActive
+                // Check if local user is speaking:
+                // 1. Local audio activity (may fail after screen off on some devices)
+                // 2. Server-reported talk status (reliable even after screen off)
+                val isLocalUserSpeaking = myId != null && (isLocalVoiceActive || overlayActiveSpeakerId == myId)
                 // Check if remote user is speaking based on activeSpeakerName
-                val isRemoteUserSpeaking = !activeSpeakerName.isNullOrEmpty()
+                val isRemoteUserSpeaking = !activeSpeakerName.isNullOrEmpty() && (myId == null || overlayActiveSpeakerId != myId)
                 // Combined speaking state
                 val isSpeaking = isLocalUserSpeaking || isRemoteUserSpeaking
                 
@@ -808,7 +810,7 @@ class TsConnectionService : LifecycleService(), ViewModelStoreOwner, SavedStateR
                                 .padding(vertical = 8.dp)
                         ) {
                             items(activeUsers) { user ->
-                                val isSpeaking = if (user.id == myId) isLocalVoiceActive else user.nickname == activeSpeakerName
+                                val isSpeaking = if (user.id == myId) (isLocalVoiceActive || overlayActiveSpeakerId == myId) else user.nickname == activeSpeakerName
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
