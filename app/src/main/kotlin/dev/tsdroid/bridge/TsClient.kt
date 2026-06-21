@@ -43,6 +43,11 @@ class TsClient {
 
     companion object {
         private const val TAG = "TsClient"
+        private const val INITIAL_CONNECT_SETTLE_MS = 300L
+        private const val RECONNECT_AFTER_DISCONNECT_DELAY_MS = 1_500L
+        private const val DISCONNECT_MIN_FLUSH_MS = 500L
+        private const val DISCONNECT_MAX_FLUSH_MS = 2_000L
+        private const val DISCONNECT_POLL_MS = 20L
     }
 
     @Volatile
@@ -104,9 +109,9 @@ class TsClient {
         connectMutex.withLock {
             try {
                 stopEventLoop()
-                disconnectOnNativeThread()
+                val hadExistingClient = disconnectOnNativeThread()
                 
-                delay(300)
+                delay(if (hadExistingClient) RECONNECT_AFTER_DISCONNECT_DELAY_MS else INITIAL_CONNECT_SETTLE_MS)
                 
                 serverAddress = address
                 _state.value = ConnectionState.CONNECTING
@@ -352,14 +357,16 @@ class TsClient {
         }
     }
 
-    private fun disconnectOnNativeThread() {
+    private fun disconnectOnNativeThread(): Boolean {
         stopEventLoop()
         val c = client
         client = null
         resetState()
         if (c != null) {
             closeClient(c, "disconnect")
+            return true
         }
+        return false
     }
 
     private fun resetState() {
@@ -381,19 +388,45 @@ class TsClient {
         }
 
         if (disconnectSent) {
-            try {
-                val flushEnd = System.currentTimeMillis() + 500
-                while (System.currentTimeMillis() < flushEnd) {
-                    c.processEvents()
-                    Thread.sleep(20)
-                }
-                Log.d(TAG, "Disconnect flush complete ($reason)")
-            } catch (e: Throwable) {
-                Log.w(TAG, "disconnect flush during $reason failed", e)
-            }
+            flushDisconnect(c, reason)
         }
 
         destroyClient(c, reason)
+    }
+
+    private fun flushDisconnect(c: Client, reason: String) {
+        val startedAt = System.currentTimeMillis()
+        val minFlushEnd = startedAt + DISCONNECT_MIN_FLUSH_MS
+        val maxFlushEnd = startedAt + DISCONNECT_MAX_FLUSH_MS
+        var observedDisconnected = false
+
+        while (System.currentTimeMillis() < maxFlushEnd) {
+            try {
+                val events = c.processEvents() ?: emptyArray()
+                if (events.any { it.type == "disconnected" }) {
+                    observedDisconnected = true
+                }
+                if (!c.isConnected || c.state == ConnectionState.DISCONNECTED) {
+                    observedDisconnected = true
+                }
+            } catch (e: Throwable) {
+                Log.w(TAG, "disconnect flush during $reason failed", e)
+                break
+            }
+
+            if (observedDisconnected && System.currentTimeMillis() >= minFlushEnd) {
+                break
+            }
+
+            try {
+                Thread.sleep(DISCONNECT_POLL_MS)
+            } catch (_: InterruptedException) {
+                Thread.currentThread().interrupt()
+                break
+            }
+        }
+
+        Log.d(TAG, "Disconnect flush complete ($reason, observedDisconnected=$observedDisconnected)")
     }
 
     private fun destroyClient(c: Client, reason: String) {

@@ -411,6 +411,12 @@ class TsConnectionService : LifecycleService(), ViewModelStoreOwner, SavedStateR
             .build()
     }
 
+    fun hasActiveConnection(address: String? = null): Boolean {
+        return !isStopping &&
+            tsClient.isConnected &&
+            (address == null || tsClient.serverAddress == address)
+    }
+
     suspend fun connect(address: String, identity: Identity, nickname: String, password: String?): Throwable? {
         if (isStopping) {
             return IllegalStateException("Connection service is still stopping. Please try again.")
@@ -708,12 +714,12 @@ class TsConnectionService : LifecycleService(), ViewModelStoreOwner, SavedStateR
         instance = null
         serviceViewModelStore.clear()
         hideFloatingWindow()
-        if (!isIntentionalDisconnect && tsClient.isConnected) {
-            try {
-                tsClient.disconnect()
-            } catch (e: Throwable) {
-                Log.w(TAG, "Best-effort disconnect during service destroy failed", e)
-            }
+        audioBridge.stopCapture()
+        WhisperManager.reset()
+        try {
+            tsClient.disconnect()
+        } catch (e: Throwable) {
+            Log.w(TAG, "Best-effort disconnect during service destroy failed", e)
         }
         audioBridge.release()
         serviceScope.cancel()

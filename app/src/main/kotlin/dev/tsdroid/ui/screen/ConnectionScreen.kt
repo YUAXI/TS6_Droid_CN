@@ -127,6 +127,7 @@ fun ConnectionScreen(
             permissions.add(Manifest.permission.POST_NOTIFICATIONS)
         }
         permissionLauncher.launch(permissions.toTypedArray())
+        viewModel.resumeExistingConnection(onConnected)
     }
 
     // Auto-reconnect on launch

@@ -106,12 +106,21 @@ class ConnectionViewModel(application: Application) : AndroidViewModel(applicati
 
     private var serviceConnection: ServiceConnection? = null
     private var connectJob: kotlinx.coroutines.Job? = null
+    private var cloneBypassIdentity: Identity? = null
 
     fun connect(onConnected: () -> Unit) {
         val addr = address.value.trim()
         val nick = nickname.value.trim()
         if (addr.isEmpty() || nick.isEmpty()) {
             _error.value = getApplication<Application>().getString(R.string.error_address_nickname_required)
+            return
+        }
+
+        val existingService = TsConnectionService.instance
+        if (existingService?.hasActiveConnection(addr) == true) {
+            _connectionState.value = ConnectionState.CONNECTED
+            _error.value = null
+            onConnected()
             return
         }
 
@@ -160,7 +169,12 @@ class ConnectionViewModel(application: Application) : AndroidViewModel(applicati
             try {
                 val identity = getOrCreateIdentity()
                 val pw = password.value.trim().takeIf { it.isNotEmpty() }
-                val connectionFailure = service.connect(addr, identity, nick, pw)
+                var connectionFailure = service.connect(addr, identity, nick, pw)
+                if (connectionFailure?.isTooManyClonesFailure() == true) {
+                    Log.w(TAG, "Too many clones for saved identity; retrying with a temporary identity")
+                    connectionFailure = service.connect(addr, getCloneBypassIdentity(), nick, pw)
+                }
+
                 if (connectionFailure == null) {
                     _connectionState.value = ConnectionState.CONNECTED
                     onConnected()
@@ -176,6 +190,16 @@ class ConnectionViewModel(application: Application) : AndroidViewModel(applicati
                 _error.value = e.message ?: getApplication<Application>().getString(R.string.connection_failed)
             }
         }
+    }
+
+    fun resumeExistingConnection(onConnected: () -> Unit): Boolean {
+        val service = TsConnectionService.instance ?: return false
+        if (!service.hasActiveConnection()) return false
+
+        _connectionState.value = ConnectionState.CONNECTED
+        _error.value = null
+        onConnected()
+        return true
     }
 
     fun connectBookmark(bookmark: ServerBookmark, onConnected: () -> Unit) {
@@ -195,6 +219,7 @@ class ConnectionViewModel(application: Application) : AndroidViewModel(applicati
 
     fun tryAutoReconnect(onConnected: () -> Unit) {
         if (autoReconnectAttempted) return
+        if (resumeExistingConnection(onConnected)) return
         autoReconnectAttempted = true
         viewModelScope.launch {
             val lastAddr = bookmarkStore.lastBookmarkAddress.first()
@@ -374,6 +399,24 @@ class ConnectionViewModel(application: Application) : AndroidViewModel(applicati
             identity.save(identityFile.absolutePath)
             identity
         }
+    }
+
+    private fun getCloneBypassIdentity(): Identity {
+        return cloneBypassIdentity ?: Identity().also {
+            cloneBypassIdentity = it
+        }
+    }
+
+    private fun Throwable.isTooManyClonesFailure(): Boolean {
+        var current: Throwable? = this
+        while (current != null) {
+            val message = current.message?.lowercase().orEmpty()
+            if ("toomanyclones" in message || "too many clones" in message) {
+                return true
+            }
+            current = current.cause
+        }
+        return false
     }
 
     fun showFloatingWindow() {
