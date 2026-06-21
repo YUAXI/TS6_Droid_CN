@@ -110,23 +110,56 @@ class TsClient {
                 
                 serverAddress = address
                 _state.value = ConnectionState.CONNECTING
-                val c = Client(address, identity, nickname, password, channel)
-                client = c
-                c.waitConnected()
-                _state.value = ConnectionState.CONNECTED
-                // Log immediately after waitConnected
-                val users = c.users
-                val channels = c.channels
-                Log.i(TAG, "After waitConnected: ${users?.size ?: "null"} users, ${channels?.size ?: "null"} channels")
-                if (users != null) {
-                    for (u in users) {
-                        if (u != null) Log.d(TAG, "  User: ${u.nickname} (id=${u.id}, ch=${u.channelId})")
+
+                var lastFailure: Throwable? = null
+                for (attempt in 0 until MAX_NICKNAME_COLLISION_ATTEMPTS) {
+                    val candidateNickname = nicknameWithCollisionSuffix(nickname, attempt)
+                    var pendingClient: Client? = null
+                    try {
+                        val c = Client(address, identity, candidateNickname, password, channel)
+                        pendingClient = c
+                        c.waitConnected()
+                        // Log immediately after waitConnected
+                        val users = c.users
+                        val channels = c.channels
+                        Log.i(TAG, "After waitConnected: ${users?.size ?: "null"} users, ${channels?.size ?: "null"} channels")
+                        if (users != null) {
+                            for (u in users) {
+                                if (u != null) Log.d(TAG, "  User: ${u.nickname} (id=${u.id}, ch=${u.channelId})")
+                            }
+                        }
+
+                        if (hasNicknameCollision(users, c.clientId, candidateNickname)) {
+                            Log.w(TAG, "Nickname '$candidateNickname' is already in use; retrying with suffix")
+                            lastFailure = IllegalStateException("Nickname already in use: $candidateNickname")
+                            closeClient(c, "nickname collision")
+                            pendingClient = null
+                            continue
+                        }
+
+                        client = c
+                        pendingClient = null
+                        _state.value = ConnectionState.CONNECTED
+                        refreshState()
+                        if (client == null) {
+                            throw IllegalStateException("Connection closed during initial state sync")
+                        }
+                        return@withLock
+                    } catch (e: Throwable) {
+                        if (e is CancellationException) throw e
+                        lastFailure = e
+                        Log.w(TAG, "Connection attempt failed with nickname '$candidateNickname'", e)
+                    } finally {
+                        pendingClient?.let {
+                            closeClient(it, "failed connection attempt")
+                        }
                     }
                 }
-                refreshState()
-                if (client == null) {
-                    throw IllegalStateException("Connection closed during initial state sync")
-                }
+
+                throw Exception(
+                    "Connection failed after trying unique nicknames",
+                    lastFailure,
+                )
             } catch (e: Throwable) {
                 closeAfterNativeFailure()
                 if (e is CancellationException) throw e

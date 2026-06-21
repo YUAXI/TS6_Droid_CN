@@ -14,6 +14,9 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import dev.tsdroid.bridge.MAX_NICKNAME_COLLISION_ATTEMPTS
+import dev.tsdroid.bridge.hasNicknameCollision
+import dev.tsdroid.bridge.nicknameWithCollisionSuffix
 import dev.tsdroid.han.R
 import dev.tsdroid.data.BookmarkStore
 import dev.tsdroid.data.ServerBookmark
@@ -24,6 +27,7 @@ import dev.tslib.Client
 import dev.tslib.ConnectionState
 import dev.tslib.Identity
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -265,29 +269,47 @@ class ConnectionViewModel(application: Application) : AndroidViewModel(applicati
                 val channels = withContext(Dispatchers.IO) {
                     val identity = getOrCreateIdentity()
                     val pw = password.value.trim().takeIf { it.isNotEmpty() }
-                    val client = Client(addr, identity, nick, pw, null)
-                    try {
-                        client.waitConnected()
-                        // Pump events until channels are available (or timeout)
-                        val deadline = System.currentTimeMillis() + 5000
-                        while (System.currentTimeMillis() < deadline) {
-                            client.processEvents()
-                            val raw = client.channels
-                            if (raw != null && raw.isNotEmpty()) break
-                            Thread.sleep(20)
+                    var lastFailure: Throwable? = null
+
+                    for (attempt in 0 until MAX_NICKNAME_COLLISION_ATTEMPTS) {
+                        val candidateNick = nicknameWithCollisionSuffix(nick, attempt)
+                        var client: Client? = null
+                        try {
+                            val c = Client(addr, identity, candidateNick, pw, null)
+                            client = c
+                            c.waitConnected()
+                            // Pump events until channels are available (or timeout)
+                            val deadline = System.currentTimeMillis() + 5000
+                            while (System.currentTimeMillis() < deadline) {
+                                c.processEvents()
+                                val raw = c.channels
+                                if (raw != null && raw.isNotEmpty()) break
+                                Thread.sleep(20)
+                            }
+
+                            if (hasNicknameCollision(c.users, c.clientId, candidateNick)) {
+                                lastFailure = IllegalStateException("Nickname already in use: $candidateNick")
+                                disconnectAndClose(c)
+                                client = null
+                                continue
+                            }
+
+                            val ch = c.channels?.filterNotNull() ?: emptyList()
+                            disconnectAndClose(c)
+                            client = null
+                            return@withContext ch
+                        } catch (e: Throwable) {
+                            if (e is CancellationException) throw e
+                            lastFailure = e
+                        } finally {
+                            client?.let { closeQuietly(it) }
                         }
-                        val ch = client.channels?.filterNotNull() ?: emptyList()
-                        // Disconnect + flush
-                        client.disconnect()
-                        val flushEnd = System.currentTimeMillis() + 500
-                        while (System.currentTimeMillis() < flushEnd) {
-                            client.processEvents()
-                            Thread.sleep(20)
-                        }
-                        ch
-                    } finally {
-                        client.close()
                     }
+
+                    throw Exception(
+                        "Browse failed after trying unique nicknames",
+                        lastFailure,
+                    )
                 }
                 browsedChannels.value = channels
                 showChannelPicker.value = true
@@ -310,6 +332,27 @@ class ConnectionViewModel(application: Application) : AndroidViewModel(applicati
 
     fun clearError() {
         _error.value = null
+    }
+
+    private fun disconnectAndClose(client: Client) {
+        try {
+            client.disconnect()
+            val flushEnd = System.currentTimeMillis() + 500
+            while (System.currentTimeMillis() < flushEnd) {
+                client.processEvents()
+                Thread.sleep(20)
+            }
+        } catch (_: Throwable) {
+        } finally {
+            closeQuietly(client)
+        }
+    }
+
+    private fun closeQuietly(client: Client) {
+        try {
+            client.close()
+        } catch (_: Throwable) {
+        }
     }
 
     private fun getOrCreateIdentity(): Identity {
