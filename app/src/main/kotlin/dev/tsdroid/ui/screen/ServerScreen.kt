@@ -500,7 +500,7 @@ fun ServerScreen(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun ChatPanel(
+fun ChatPanel(
     chatTab: Int,
     onTabChange: (Int) -> Unit,
     channelMessages: List<ChatMessage>,
@@ -725,7 +725,7 @@ private fun ChatPanel(
 }
 
 @Composable
-private fun SettingsDialog(
+fun SettingsDialog(
     currentGain: Float,
     onGainChange: (Float) -> Unit,
     showLinkThumbnails: Boolean,
@@ -853,6 +853,4 @@ private fun SettingsDialog(
             }
         },
     )
-    }
-    }
 }
