@@ -373,7 +373,9 @@ fun ServerScreen(
         },
     ) { padding ->
         Box(
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding),
         ) {
             AnimeBackground(enabled = animeBackground)
 
