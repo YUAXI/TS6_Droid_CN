@@ -51,6 +51,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
@@ -87,6 +88,7 @@ import dev.tsdroid.ui.component.AnimeBackground
 import dev.tsdroid.ui.component.ChannelTree
 import dev.tsdroid.ui.component.ChatView
 import dev.tsdroid.ui.component.FileManagerDialog
+import dev.tsdroid.ui.theme.GlassColors
 import dev.tsdroid.ui.component.ShareTarget
 import dev.tsdroid.viewmodel.ChatMessage
 import dev.tsdroid.viewmodel.DownloadState
@@ -545,7 +547,7 @@ fun ChatPanel(
     }
     Surface(
         modifier = Modifier.fillMaxSize(),
-        color = Color.White.copy(alpha = 0.65f),
+        color = MaterialTheme.colorScheme.surface,
     ) {
         Column(
             modifier = Modifier
@@ -561,6 +563,7 @@ fun ChatPanel(
                 TabRow(
                     selectedTabIndex = chatTab,
                     modifier = Modifier.weight(1f),
+                    containerColor = Color.Transparent,
                 ) {
                     Tab(
                         selected = chatTab == 0,
@@ -645,7 +648,7 @@ fun ChatPanel(
             // Whisper mode indicator
             if (isWhisperActive && whisperTargetName != null) {
                 Surface(
-                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f),
+                    color = GlassColors.SurfaceHigh,
                     shape = RoundedCornerShape(8.dp),
                     modifier = Modifier.fillMaxWidth().padding(bottom = 4.dp),
                 ) {
@@ -715,6 +718,12 @@ fun ChatPanel(
                     },
                     singleLine = true,
                     enabled = chatTab == 0 || pmTarget != null || (isWhisperActive && whisperTargetName != null),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        unfocusedContainerColor = GlassColors.SurfaceVariant,
+                        focusedContainerColor = GlassColors.Surface,
+                        unfocusedBorderColor = GlassColors.Outline,
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                    ),
                 )
                 IconButton(
                     onClick = onSend,
@@ -748,6 +757,7 @@ fun SettingsDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
+        containerColor = GlassColors.SurfaceHigh,
         title = { Text(stringResource(R.string.settings)) },
         text = {
             Column {

@@ -41,6 +41,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -75,6 +76,8 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import dev.tsdroid.han.R
 import dev.tslib.ConnectionState
 import dev.tsdroid.ui.component.AnimeBackground
+import dev.tsdroid.ui.theme.GlassColors
+import dev.tsdroid.ui.theme.GlassShapes
 import dev.tsdroid.ui.component.ChannelTree
 import dev.tsdroid.viewmodel.ConnectionViewModel
 import kotlinx.coroutines.launch
@@ -208,6 +211,7 @@ fun ConnectionScreen(
             val languageLabel = languageOptions.firstOrNull { it.first == languageTag }?.second ?: languageTag
             AlertDialog(
                 onDismissRequest = { pendingLanguageTag = null },
+                containerColor = GlassColors.SurfaceHigh,
                 title = { Text(stringResource(R.string.language_change_title)) },
                 text = { Text(stringResource(R.string.language_change_message, languageLabel)) },
                 confirmButton = {
@@ -277,7 +281,7 @@ fun ConnectionScreen(
                         Card(
                             modifier = Modifier.fillMaxWidth(),
                             colors = CardDefaults.cardColors(
-                                containerColor = Color.White.copy(alpha = 0.6f),
+                                containerColor = MaterialTheme.colorScheme.surface,
                             ),
                             elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
                         ) {
@@ -366,6 +370,7 @@ fun ConnectionScreen(
             val bookmarkName = bookmarks.getOrNull(idx)?.let { it.serverName ?: it.name } ?: ""
             AlertDialog(
                 onDismissRequest = { deleteConfirmIndex = null },
+                containerColor = GlassColors.SurfaceHigh,
                 title = { Text(stringResource(R.string.remove)) },
                 text = { Text(stringResource(R.string.confirm_delete, bookmarkName)) },
                 confirmButton = {
@@ -388,8 +393,9 @@ fun ConnectionScreen(
         if (showChannelPicker) {
             Dialog(onDismissRequest = { viewModel.showChannelPicker.value = false }) {
                 Surface(
-                    shape = MaterialTheme.shapes.extraLarge,
-                    tonalElevation = 6.dp,
+                    color = GlassColors.SurfaceHigh,
+                    shape = GlassShapes.Large,
+                    tonalElevation = 0.dp,
                 ) {
                     Column(modifier = Modifier.padding(24.dp)) {
                         Text(
@@ -423,8 +429,15 @@ fun ConnectionScreen(
                     viewModel.cancelEdit()
                 },
                 sheetState = sheetState,
+                containerColor = GlassColors.SurfaceHigh,
             ) {
                 val isEditing = editingIndex >= 0
+                val glassTextFieldColors = OutlinedTextFieldDefaults.colors(
+                    unfocusedContainerColor = GlassColors.SurfaceVariant,
+                    focusedContainerColor = GlassColors.Surface,
+                    unfocusedBorderColor = GlassColors.Outline,
+                    focusedBorderColor = MaterialTheme.colorScheme.primary,
+                )
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -446,6 +459,7 @@ fun ConnectionScreen(
                         singleLine = true,
                         maxLines = 1,
                         enabled = !isConnecting,
+                        colors = glassTextFieldColors,
                     )
 
                     OutlinedTextField(
@@ -456,6 +470,7 @@ fun ConnectionScreen(
                         singleLine = true,
                         maxLines = 1,
                         enabled = !isConnecting,
+                        colors = glassTextFieldColors,
                     )
 
                     OutlinedTextField(
@@ -467,6 +482,7 @@ fun ConnectionScreen(
                         maxLines = 1,
                         enabled = !isConnecting,
                         visualTransformation = PasswordVisualTransformation(),
+                        colors = glassTextFieldColors,
                     )
 
                     OutlinedTextField(
@@ -490,6 +506,7 @@ fun ConnectionScreen(
                                 }
                             }
                         },
+                        colors = glassTextFieldColors,
                     )
 
                     Row(
