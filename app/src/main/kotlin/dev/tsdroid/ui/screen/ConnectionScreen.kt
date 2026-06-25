@@ -181,16 +181,22 @@ fun ConnectionScreen(
                                 },
                             )
                             DropdownMenuItem(
-                                text = { Text(stringResource(R.string.anime_background)) },
+                                text = {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                    ) {
+                                        Text(stringResource(R.string.anime_background))
+                                        Switch(
+                                            checked = animeBackground,
+                                            onCheckedChange = { scope.launch { settingsStore.setAnimeBackground(it) } }
+                                        )
+                                    }
+                                },
                                 onClick = {
                                     scope.launch { settingsStore.setAnimeBackground(!animeBackground) }
                                 },
-                                trailingIcon = {
-                                    Switch(
-                                        checked = animeBackground,
-                                        onCheckedChange = { scope.launch { settingsStore.setAnimeBackground(it) } }
-                                    )
-                                }
                             )
                         }
                     }
