@@ -46,7 +46,7 @@
     <string name="show_link_thumbnails">Miniatures des liens vidéo</string>
     <string name="auto_load_images">Charger les images automatiquement</string>
     <string name="enable_floating_window">Activer la fenêtre flottante</string>
-    <string name="anime_background">Fond d\'écran animé aléatoire</string>
+    <string name="anime_background">Fond animé aléatoire</string>
     <string name="chat">Chat</string>
     <string name="push_to_talk">Appuyer pour parler</string>
     <string name="ptt">PTT</string>

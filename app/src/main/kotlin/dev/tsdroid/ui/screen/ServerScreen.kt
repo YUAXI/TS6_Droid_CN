@@ -59,6 +59,7 @@ import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -205,6 +206,10 @@ fun ServerScreen(
         topBar = {
             TopAppBar(
                 title = { Text(serverInfo?.name ?: stringResource(R.string.server)) },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = Color.Transparent,
+                    scrolledContainerColor = Color.Transparent,
+                ),
                 actions = {
                     IconButton(onClick = { viewModel.toggleFileManager() }) {
                         Icon(Icons.Default.Folder, contentDescription = stringResource(R.string.file_manager))
@@ -220,7 +225,8 @@ fun ServerScreen(
         },
         bottomBar = {
             Surface(
-                tonalElevation = 3.dp,
+                color = Color.Transparent,
+                tonalElevation = 0.dp,
             ) {
                 Row(
                     modifier = Modifier
@@ -364,9 +370,7 @@ fun ServerScreen(
         },
     ) { padding ->
         Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding),
+            modifier = Modifier.fillMaxSize(),
         ) {
             AnimeBackground(enabled = animeBackground)
 

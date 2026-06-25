@@ -1,6 +1,7 @@
 package dev.tsdroid.ui.component
 
 import android.os.Build
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.*
@@ -8,6 +9,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
@@ -56,13 +59,27 @@ fun AnimeBackground(enabled: Boolean) {
             contentScale = ContentScale.Crop,
             modifier = Modifier
                 .fillMaxSize()
-                .alpha(0.25f)
+                .alpha(0.5f)
                 .then(
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                        Modifier.blur(30.dp)
+                        Modifier.blur(8.dp)
                     } else {
                         Modifier
                     }
+                )
+        )
+
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(
+                            Color.White.copy(alpha = 0.3f),
+                            Color.White.copy(alpha = 0.1f),
+                            Color.White.copy(alpha = 0.3f),
+                        )
+                    )
                 )
         )
     }

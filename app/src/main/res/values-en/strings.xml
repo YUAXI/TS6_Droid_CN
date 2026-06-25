@@ -86,7 +86,7 @@
     <string name="about_repo_link">🔗 Click to visit yuaxi\'s open-source GitHub repository</string>
     <string name="about_warning_title">⚠️ Anti-Fraud (Solemn Disclaimer)</string>
     <string name="about_warning_desc">This program is a purely public-welfare, non-profit product for open-source technical exchange. It is completely FREE and completely OPEN-SOURCE! Any form of commercial peddling, packaging buyout, or bundled key-code charging is strictly prohibited. If you obtained this software through paid channels (such as second-hand bots, trading platforms, paid downloading services, etc.), you have been scammed! Please immediately initiate a refund claim for infringement on the platform, and head to the official open-source repository to report the black-market scalpers with your real name!</string>
-    <string name="anime_background">Random anime background</string>
+    <string name="anime_background">I love anime</string>
     <string name="about_contributors_title">Contributors</string>
     <string name="about_contributions_count">%1$d contributions</string>
     <string name="contributors_load_error">Failed to load</string>

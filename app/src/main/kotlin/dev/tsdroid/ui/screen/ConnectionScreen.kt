@@ -48,6 +48,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -150,6 +151,10 @@ fun ConnectionScreen(
         topBar = {
             TopAppBar(
                 title = { Text(stringResource(R.string.app_name)) },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = Color.Transparent,
+                    scrolledContainerColor = Color.Transparent,
+                ),
                 actions = {
                     Box {
                         TextButton(onClick = { languageMenuExpanded = true }) {
@@ -168,13 +173,28 @@ fun ConnectionScreen(
                                     },
                                 )
                             }
-                            androidx.compose.material3.Divider()
                             DropdownMenuItem(
                                 text = { Text(stringResource(R.string.about_software)) },
                                 onClick = {
                                     languageMenuExpanded = false
                                     onNavigateToAbout()
                                 },
+                            )
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.anime_background)) },
+                                onClick = {
+                                    languageMenuExpanded = false
+                                },
+                                trailingIcon = {
+                                    Switch(
+                                        checked = animeBackground,
+                                        onCheckedChange = {
+                                            kotlinx.coroutines.MainScope().launch {
+                                                settingsStore.setAnimeBackground(it)
+                                            }
+                                        }
+                                    )
+                                }
                             )
                         }
                     }
@@ -213,15 +233,14 @@ fun ConnectionScreen(
             )
         }
         Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding),
+            modifier = Modifier.fillMaxSize(),
         ) {
             AnimeBackground(enabled = animeBackground)
 
             Column(
                 modifier = Modifier
                     .fillMaxSize()
+                    .padding(padding)
                     .padding(horizontal = 16.dp)
                     .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
