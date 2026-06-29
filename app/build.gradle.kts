@@ -12,8 +12,8 @@ android {
         applicationId = "com.yuaxi.ts6droid.cn"
         minSdk = 29
         targetSdk = 35
-        versionCode = 5
-        versionName = "2.0.5-Han"
+        versionCode = 6
+        versionName = "2.1.0-Han"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -28,6 +28,9 @@ android {
     }
 
     buildTypes {
+        debug {
+            signingConfig = signingConfigs.getByName("release")
+        }
         release {
             isMinifyEnabled = false
             proguardFiles(

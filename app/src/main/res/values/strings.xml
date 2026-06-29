@@ -72,6 +72,7 @@
     <string name="update_already_latest">Déjà à jour</string>
     <string name="update_available">Nouvelle version %1$s disponible</string>
     <string name="update_download">Mettre à jour</string>
+    <string name="update_downloading">Téléchargement en cours</string>
     <string name="update_later">Plus tard</string>
     <string name="update_no_changelog">Aucun journal de modifications</string>
     <string name="close">Fermer</string>

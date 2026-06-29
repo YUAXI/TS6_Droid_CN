@@ -54,6 +54,7 @@
     <string name="update_already_latest">Already up to date</string>
     <string name="update_available">New version %1$s available</string>
     <string name="update_download">Update now</string>
+    <string name="update_downloading">Downloading</string>
     <string name="update_later">Later</string>
     <string name="update_no_changelog">No changelog available</string>
     <string name="close">Close</string>

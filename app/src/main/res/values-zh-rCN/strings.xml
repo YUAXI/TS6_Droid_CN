@@ -71,6 +71,7 @@
     <string name="update_already_latest">已是最新版本</string>
     <string name="update_available">发现新版本 %1$s</string>
     <string name="update_download">立即更新</string>
+    <string name="update_downloading">正在下载</string>
     <string name="update_later">稍后再说</string>
     <string name="update_no_changelog">暂无更新说明</string>
     <string name="close">关闭</string>

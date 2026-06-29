@@ -424,33 +424,76 @@ fun SettingsPage(
         } catch (_: Exception) { "" }
         var isCheckingUpdate by remember { mutableStateOf(false) }
         var updateInfo by remember { mutableStateOf<dev.tsdroid.update.UpdateInfo?>(null) }
+        var updateError by remember { mutableStateOf<String?>(null) }
         var showUpdateDialog by remember { mutableStateOf(false) }
         var isLatestVersion by remember { mutableStateOf(false) }
+        var isDownloading by remember { mutableStateOf(false) }
+        var downloadProgress by remember { mutableFloatStateOf(0f) }
+        var downloadError by remember { mutableStateOf<String?>(null) }
 
         if (showUpdateDialog && updateInfo != null) {
             AlertDialog(
-                onDismissRequest = { showUpdateDialog = false },
+                onDismissRequest = { if (!isDownloading) { showUpdateDialog = false } },
                 containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
                 title = { Text(stringResource(R.string.update_available, updateInfo!!.versionName)) },
                 text = {
                     Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
-                        val changelog = updateInfo!!.changelog
-                        val displayText = changelog.take(2000)
-                        Text(
-                            text = displayText.ifBlank { stringResource(R.string.update_no_changelog) },
-                            style = MaterialTheme.typography.bodyMedium,
-                        )
-                        if (changelog.length > 2000) {
-                            Text("...", style = MaterialTheme.typography.bodySmall)
+                        if (isDownloading) {
+                            Text(
+                                text = "${stringResource(R.string.update_downloading)} ${(downloadProgress * 100).toInt()}%",
+                                style = MaterialTheme.typography.bodyMedium,
+                            )
+                            Spacer(Modifier.height(8.dp))
+                            LinearProgressIndicator(
+                                progress = { downloadProgress },
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                            if (downloadError != null) {
+                                Spacer(Modifier.height(8.dp))
+                                Text(
+                                    text = downloadError!!,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.error,
+                                )
+                            }
+                        } else {
+                            val changelog = updateInfo!!.changelog
+                            val displayText = changelog.take(2000)
+                            Text(
+                                text = displayText.ifBlank { stringResource(R.string.update_no_changelog) },
+                                style = MaterialTheme.typography.bodyMedium,
+                            )
+                            if (changelog.length > 2000) {
+                                Text("...", style = MaterialTheme.typography.bodySmall)
+                            }
                         }
                     }
                 },
                 confirmButton = {
-                    FilledTonalButton(onClick = {
-                        showUpdateDialog = false
-                        dev.tsdroid.update.UpdateChecker.openDownload(context, updateInfo!!.downloadUrl)
-                    }) {
-                        Text(stringResource(R.string.update_download))
+                    if (!isDownloading) {
+                        FilledTonalButton(onClick = {
+                            isDownloading = true
+                            downloadError = null
+                            downloadProgress = 0f
+                            scope.launch {
+                                val success = dev.tsdroid.update.InAppUpdater.downloadAndInstall(
+                                    context = context,
+                                    downloadUrl = updateInfo!!.downloadUrl,
+                                    onProgress = { progress ->
+                                        downloadProgress = progress.progress
+                                        if (progress.state == dev.tsdroid.update.InAppUpdater.DownloadState.FAILED) {
+                                            downloadError = progress.error
+                                            isDownloading = false
+                                        } else if (progress.state == dev.tsdroid.update.InAppUpdater.DownloadState.DONE) {
+                                            showUpdateDialog = false
+                                        }
+                                    }
+                                )
+                                isDownloading = false
+                            }
+                        }) {
+                            Text(stringResource(R.string.update_download))
+                        }
                     }
                 },
                 dismissButton = {
@@ -469,11 +512,15 @@ fun SettingsPage(
                         isCheckingUpdate = true
                         isLatestVersion = false
                         updateInfo = null
+                        updateError = null
                         scope.launch {
                             val result = dev.tsdroid.update.UpdateChecker.checkForUpdate(versionName)
-                            updateInfo = result
-                            if (result != null) {
+                            updateInfo = result.update
+                            updateError = result.error
+                            if (result.update != null) {
                                 showUpdateDialog = true
+                            } else if (result.error != null) {
+                                // API failed — keep isLatestVersion false, show error via text
                             } else {
                                 isLatestVersion = true
                             }
@@ -500,6 +547,12 @@ fun SettingsPage(
                     text = stringResource(R.string.update_found),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.primary,
+                )
+            } else if (updateError != null) {
+                Text(
+                    text = updateError ?: "",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
                 )
             } else if (isLatestVersion) {
                 Text(
